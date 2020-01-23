@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">GeocoderApp</string>
+    <string name="app_creator">Avyay Natarajan</string>
+    <string name="refresh_button_text">Reset</string>
+</resources>
