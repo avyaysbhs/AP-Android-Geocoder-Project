@@ -18,6 +18,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
@@ -26,8 +28,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private double traveled;
 
     private Geocoder geocoder;
-    private DecimalFormat milesFormat = new DecimalFormat("###.#");
-    private DecimalFormat latLongFormat = new DecimalFormat("####.###");
+    private DecimalFormat milesFormat = new DecimalFormat("####.###");
+    private DecimalFormat latLongFormat = new DecimalFormat("#####.####");
 
     private Location location;
     private LocationManager locationManager;
@@ -44,9 +46,38 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         onLocationChanged(location);
     }
 
+    public String repeat(String s, int n)
+    {
+        StringBuilder o = new StringBuilder(); for (int i = 0; i<n; i++) o.append(s); return o.toString();
+    }
+
+    public String fillStart(String s, String fragment, int ceiling)
+    {
+        int delta = s.length() - fragment.length();
+        if (delta > ceiling)
+            return fragment + s.substring(fragment.length());
+        String out = null; int index = 0;
+        while (index < s.length() - ceiling)
+        {
+            out = fragment.substring(0, index++) + s.substring(index);
+        }
+        return out;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
+                requestId++
+            );
+            return;
+        }
+
         setContentView(R.layout.activity_main);
 
         latitudeView = findViewById(R.id.latitude);
@@ -57,16 +88,40 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         Button refreshButton = findViewById(R.id.refresh);
         refreshButton.setOnClickListener(this::refresh);
 
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
-            requestId++);
-            return;
-        }
-
+        assert locationManager != null;
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1000, this);
 
-        assert locationManager != null;
+        new Thread(() ->
+        {
+            int step = 0;
+            List<String> lat = new ArrayList<>();
+            for (int i=0;i<=24;i++)
+                lat.add(fillStart(repeat(". ", i), "loading ", 4));
+
+            List<String> lon = new ArrayList<>(lat);
+            lon.add(0, lon.remove(lon.size() - 1));
+
+            List<String> dist = new ArrayList<>(lon);
+            dist.add(0, dist.remove(dist.size() - 1));
+
+            while (location == null)
+            {
+                try {
+                    step = step + 1 > lat.size() - 1 ? 0 : step + 1;
+                    final int stepF = step;
+                    runOnUiThread(() -> {
+                        latitudeView.setText(lat.get(stepF));
+                        longitudeView.setText(lon.get(stepF));
+                        distanceView.setText(dist.get(stepF));
+                    });
+                    Thread.sleep(40);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            onLocationChanged(location);
+        }).start();
+
         refresh(null);
     }
 
