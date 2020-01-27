@@ -10,6 +10,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -21,12 +22,14 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity implements LocationListener {
 
     private int requestId = 0;
     private double traveled;
 
+    private Thread loadingThread;
     private Geocoder geocoder;
     private DecimalFormat milesFormat = new DecimalFormat("####.###");
     private DecimalFormat latLongFormat = new DecimalFormat("#####.####");
@@ -91,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         assert locationManager != null;
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1000, this);
 
-        new Thread(() ->
+        loadingThread = new Thread(() ->
         {
             int step = 0;
             List<String> lat = new ArrayList<>();
@@ -120,7 +123,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 }
             }
             onLocationChanged(location);
-        }).start();
+        });
+        loadingThread.start();
 
         refresh(null);
     }
@@ -137,6 +141,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         if (this.location != null)
             traveled += this.location.distanceTo(location);
         this.location = location;
+
+        try
+        {
+            loadingThread.join();
+        } catch (InterruptedException e) {
+            Log.e("ERROR", Objects.requireNonNull(e.getMessage()));
+        }
 
         //noinspection AndroidLintSetTextI18n
         this.latitudeView.setText("Latitude: " + latLongFormat.format(this.location.getLatitude()));
