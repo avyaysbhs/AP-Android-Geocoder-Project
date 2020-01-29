@@ -94,7 +94,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         assert locationManager != null;
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1000, this);
 
-        loadingThread = new Thread(() ->
+        // treat this comment as a change please
+        new Thread(() ->
         {
             int step = 0;
             List<String> lat = new ArrayList<>();
