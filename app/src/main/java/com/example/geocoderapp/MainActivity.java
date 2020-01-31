@@ -12,14 +12,17 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -73,6 +76,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
+        getWindow().requestFeature(Window.FEATURE_NO_TITLE);
+
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(
                     new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
@@ -92,21 +97,25 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         refreshButton.setOnClickListener(this::refresh);
 
         assert locationManager != null;
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1000, this);
+//        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1000, this);
 
-        // treat this comment as a change please
         new Thread(() ->
         {
             int step = 0;
+
             List<String> lat = new ArrayList<>();
-            for (int i=0;i<=24;i++)
-                lat.add(fillStart(repeat(". ", i), "loading ", 4));
+            List<String> lon = new ArrayList<>();
+            List<String> dist = new ArrayList<>();
 
-            List<String> lon = new ArrayList<>(lat);
-            lon.add(0, lon.remove(lon.size() - 1));
+            for (int i=0;i<=20;i++) {
+                String fragmentString = "fetching %s";
+                lat.add(fillStart(repeat(". ", i), String.format(fragmentString, "latitude"), 4));
+                lon.add(fillStart(repeat(". ", i), String.format(fragmentString, "longitude"), 4));
+                dist.add(fillStart(repeat(". ", i), String.format(fragmentString, "distance"), 4));
+            }
 
-            List<String> dist = new ArrayList<>(lon);
-            dist.add(0, dist.remove(dist.size() - 1));
+            Collections.rotate(lon, 2);
+            Collections.rotate(dist, 4);
 
             while (location == null)
             {
@@ -123,9 +132,26 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     e.printStackTrace();
                 }
             }
-            onLocationChanged(location);
-        });
-        loadingThread.start();
+            runOnUiThread(() -> {
+                onLocationChanged(location);
+            });
+        }).start();
+
+        new Thread(() ->
+        {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            {
+                Toast.makeText(this, "You need to allow location permissions!", Toast.LENGTH_LONG).show();
+                throw new RuntimeException();
+            }
+            runOnUiThread(() -> locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1000, this));
+        }).start();
 
         refresh(null);
     }
